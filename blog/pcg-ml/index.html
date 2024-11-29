@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <title>Predicting Soft Errors in PCG with ML</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta http-equiv="x-ua-compatible" content="ie=edge">
+      <meta name="author" content="Ellena Jiang">
+      <!-- Website description -->
+      <meta name="description" content="">
+
+      <!-- Google font -->
+      <link href='https://fonts.googleapis.com/css?family=Roboto:400,300,500,100' rel='stylesheet' type='text/css'>
+      <!-- Font Awesome -->
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+      <!-- Style sheet -->
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.1.3/dist/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+      <link rel="stylesheet" href="/assets/css/style.css">
+      <!-- Favicon -->
+      <link rel="icon" type="image/svg+xml" sizes="any" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐈</text></svg>"/>
+      <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+   </head>
+
+<body>
+   <div class="container-fluid d-flex flex-column">
+         <div class="row">
+
+               <!-- Sidebar  -->
+               <div id="sidebar" class="col-3 d-flex flex-column p-5">
+
+                  <!-- Profile Info -->
+                  <div class="profile-container">
+                     <img src="/assets/img/profile_photo.JPG" style="width: 70%; height: auto; margin-bottom: 5px;" alt="Profile Photo">
+                     <p class="header no-margin">Ellena Jiang</p>
+                     <p>Computer Science student @ University of Vienna</p>
+                  </div>
+                  <hr>
+
+                  <!-- Navigation elements -->
+                  <ul class="nav flex-column">
+                     <li class="nav-item">
+                        <a href="../../index.html" class="nav-link">About me</a>
+                     </li>
+                     <li class="nav-item">
+                        <a href="../index.html" class="nav-link">Blog</a>
+                     </li>
+                  </ul>
+
+                  <!-- Contact and social media -->
+                  <div class="contact">
+                     <a href="mailto:ellena.jiang@univie.ac.at">
+                        <i class="fas fa-envelope"></i>
+                     </a>
+                     <a href="https://github.com/ellenaj0" target="_blank">
+                        <i class="fab fa-github-alt"></i>
+                     </a>
+                     <a href="https://www.linkedin.com/in/ellena-jiang/" target="_blank">
+                        <i class="fab fa-linkedin"></i>
+                     </a>
+                  </div>
+               </div>
+
+            <!-- Main content -->
+            <div class="col-6 offset-4 py-5 flex-auto">
+
+               <div id="blog-posts">
+                  <p class="header">Predicting Soft Errors in PCG with ML</p>
+                  <p>Date: June 27, 2024 </p>
+
+                  <p class="section">Introduction</p>
+
+                  <p>During my time as a student researcher at the <a href="https://taa.cs.univie.ac.at/" target="_blank"> Research Group Theory and Applications of Algorithms</a> at the <a href="https://www.univie.ac.at/en/" target="_blank">University of Vienna</a>, I delved
+                     into an interesting problem at the intersection of high-performance computing (HPC) and machine learning: developing machine learning methods
+                     to predict the impact of soft errors on the convergence of the Preconditioned Conjugate Gradient (PCG) method.</p>
+
+                  <p>Now you might be wondering: Why is this problem relevant? What are soft errors and why do we care about them? How can machine learning help us address them?</p>
+
+                  <p>Let’s dive right in to unravel these questions one by one.</p>
+
+                  <p class="section">The Preconditioned Conjugate Gradient method</p>
+
+                  <p>First, let's briefly introduce the Preconditioned Conjugate Gradient (PCG) method. PCG is an iterative algorithm for  solving symmetric and positive definite linear systems of
+                     the form \(Ax = b\). PCG is typically used for solving large sparse systems (i.e. \(A\) has mostly zero-entries) where using traditional direct methods
+                     is wasteful and too computationally expensive.</p>
+
+                  <p>If you're familiar with the Conjugate Gradient (CG) method, PCG is very similar. The key difference is that PCG uses preconditioning, which is
+                     essentially a mathematical trick where we multiply both sides of our equation with a non-singular matrix \(M^{-1}\) such that \(M^{-1}A\) is better conditioned than \(A\).
+                     We call \(M\) the preconditioner. The equation then becomes:</p>
+
+                  <p>\[M^{-1}Ax = M^{-1}b\]</p>
+
+                  <p>The goal of preconditioning is to accelerate convergence of the algorithm.</p>
+
+                  <figure>
+                     <img src="PCG_Pseudocode.png" style="width: 90%; height: auto; margin-bottom: 5px;" alt="PCG Pseudocode">
+                     <figcaption>Fig. 1. Pseudocode of PCG. (Source: Agullo et al. <a href="#ref1">[1]</a>)</figcaption>
+                  </figure>
+
+                  <p style="font-weight: 500;">Where is PCG used?</p>
+
+                  <p>PCG is used in many areas of science. Common applications include simulating heat distribution in complex structures and calculating airflow around
+                     aircraft wings. These problems are described by partial differential equations (PDEs), which ultimately boil down to solving enormous sparse linear
+                     systems. This is where using PCG becomes very efficient, and therefore it is a crucial algorithm for many scientific applications.</p>
+
+                  <p class="section">Soft errors in PCG</p>
+
+                  <p>Now that we have an overview of PCG and its applications, we can move onto the actual problem at hand: the impact of soft errors on PCG convergence.
+                     Soft errors, such as bit-flips, are particularly tricky because they don't cause immediate program failure. Instead, they silently corrupt data,
+                     thereby making it unreliable. With the increasing scale of supercomputers, developing resilience strategies against soft errors has become crucial in
+                     high-performance computing.</p>
+
+                  <p>The simplest solution to this problem would be to duplicate all computations to be able to detect these errors. However, this is not computationally affordable because
+                     of the expensive matrix-vector multiplication (line 3 in Fig. 1) we do in every iteration. Therefore, protecting all elements is infeasible. On the other
+                     hand, not protecting any computations leaves us vulnerable to errors that can severely impact both accuracy and performance.</p>
+
+                  <p>The question that naturally arises now is: Can we <i>selectively</i> protect only the most important elements in the matrix
+                     vector multiplication while minimizing overhead? This is exactly where machine learning comes into play.</p>
+
+                  <p class="section">ML prediction of soft error impacts</p>
+
+                  <p>Machine learning can help us predict which elements, when affected by soft errors, would significantly impact PCG's performance.
+                     Chen et al. <a href="#ref2">[2]</a> approached this as a classification problem, training various models (including random forest, SVM and KNN) to predict whether
+                     a soft error in a specific element of the p vector (line 3 of Fig. 1) would significantly affect PCG convergence.</p>
+
+                  <p>What does "significant" impact mean? Since the goal is to reduce overhead compared to the full-protection scheme, the authors define a significant impact
+                     as one that at least doubles the number of iterations needed for convergence compared to the error-free case.</p>
+
+                  <p>The model is trained using two features (the reason for using these features is described in <a href="#ref2">[2]</a>):</p>
+
+                  <ol>
+                        <li>The iteration number when the fault occurs</li>
+                        <li>The row 2-norm of the matrix row corresponding to the affected element</li>
+                  </ol>
+
+                  <p>Based on these features, the model makes binary decisions: should an element be protected because soft errors would significantly slow down convergence,
+                     or can it remain unprotected since errors would only have little impact? This allows for a dynamic protection scheme that can be used for an individual
+                     matrix.</p>
+
+                  <p>The authors demonstrate the effectiveness of their approach by comparing the proposed dynamic protection scheme against zero- and full-protection
+                     strategies, showing experiments using two matrices. <a href="#ref2">[2]</a></p>
+
+                  <p>However, there are several limitations that remain unsolved:</p>
+
+                  <ol>
+                     <li>The approach needs to be individually tailored for each matrix and lacks generalization across different matrix types.</li>
+                     <li>Numerical properties that work well as features for one matrix type might not be informative for others.</li>
+                     <li>In practice, most soft errors manifest as single or double-bit flips, and their impact heavily depends on which specific bits are affected.</li>
+                  </ol>
+
+                  <p>So while this approach represents a promising initial exploration, significant limitations prevent its immediate generalization to broader scenarios.</p>
+
+                  <p class="section">Conclusion</p>
+
+                  <p>In this post, we explored how machine learning can be leveraged to tackle a specific challenge in scientific computing: protecting elements in the
+                     Preconditioned Conjugate Gradient from soft errors. While this problem may seem abstract, it has practical significance in ensuring the reliability
+                     of numerical simulations and computations. Although interesting work has been done in this field in recent years, there are still many open challenges
+                     which present opportunities for future research. By addressing these challenges, we can make scientific computing more robust and efficient.</p>
+
+                  <p class="section">References</p>
+
+                  <p id="ref1"><a href="https://doi.org/10.1137/18m122858x" target="_blank">[1]</a> E. Agullo, S. Cools, Emrullah Fatih-Yetkin, L. Giraud, N. Schenkels, and Wim Vanroose, “On Soft Errors in the Conjugate Gradient Method: Sensitivity and Robust Numerical Detection,” <i>SIAM Journal on Scientific Computing</i>, vol. 42, no. 6, pp. C335–C358, Jan 2020.</p>
+
+                  <p id="ref2"><a href="https://doi.org/10.1145/3624062.3624117" target="_blank">[2]</a> Z. Chen, T. Verrecchia, H. Sun, J. Booth, and P. Raghavan, “Dynamic Selective Protection of Sparse Iterative Solvers via ML Prediction of Soft Error Impacts,”<i>Proceedings of the SC ’23 Workshops of The International Conference on High Performance Computing, Network, Storage, and Analysis</i>, pp. 488–491, Nov 2023.</p>
+               </div>
+            </div>
+
+         </div>
+      </div>
+</body>
+</html>
